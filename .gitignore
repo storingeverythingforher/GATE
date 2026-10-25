@@ -1,0 +1,7 @@
+.env
+/gemini-request.sh
+.env.*
+!.env.example
+node_modules/
+dist/
+.vercel/
