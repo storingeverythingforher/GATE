@@ -295,9 +295,9 @@ function App() {
           }}
         >
           <span className="brand-mark">
-            h<span>✳</span>
+            G<span>✳</span>
           </span>
-          her<span className="brand-dot">.</span>
+          GATEwise
         </a>
         <button
           className="mobile-close icon-button"
@@ -1089,7 +1089,7 @@ function App() {
           <footer className="page-footer">
             <span>Made for the moments when you choose to try.</span>
             <span>
-              her. <span className="footer-star">✳</span> your potential, in
+              GATEwise <span className="footer-star">✳</span> your potential, in
               progress.
             </span>
           </footer>
