@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowUpRight,
@@ -60,6 +60,18 @@ async function request(action, data, token) {
 }
 function App() {
   const [profile, setProfile] = useState(() => store.get("her-profile", null));
+  const [savedProfiles, setSavedProfiles] = useState(() => {
+    const saved = store.get("her-profiles", []);
+    const profiles = Array.isArray(saved)
+      ? saved.filter((p) => p?.id && p?.name && p?.token)
+      : [];
+    const current = store.get("her-profile", null);
+    if (current?.token && !profiles.some((p) => p.id === current.id))
+      profiles.push(current);
+    return profiles;
+  });
+  const activeToken = useRef(profile?.token);
+  const [creatingProfile, setCreatingProfile] = useState(false);
   const [name, setName] = useState("");
   const [page, setPage] = useState("practice");
   const [subjectId, setSubjectId] = useState("probability");
@@ -95,6 +107,9 @@ function App() {
       .catch(() => setStatus(null));
   }, []);
   useEffect(() => {
+    store.set("her-profiles", savedProfiles);
+  }, [savedProfiles]);
+  useEffect(() => {
     if (profile) loadHistory();
   }, [profile?.token]);
   useEffect(() => {
@@ -126,12 +141,38 @@ function App() {
     };
   }, [question?.id]);
   async function loadHistory() {
+    const token = profile?.token;
+    if (!token) return;
     try {
-      const d = await request("history", undefined, profile.token);
-      setItems(d.items);
+      const d = await request("history", undefined, token);
+      if (activeToken.current === token) setItems(d.items);
     } catch (e) {
-      setError(e.message);
+      if (activeToken.current === token) setError(e.message);
     }
+  }
+  function switchProfile(nextProfile) {
+    if (busy) return;
+    activeToken.current = nextProfile?.token;
+    store.set("her-profile", nextProfile);
+    setProfile(nextProfile);
+    setItems([]);
+    setQuestion(null);
+    setResult(null);
+    setAnswer([]);
+    setHint(false);
+    setImage(null);
+    setReview(false);
+    setError("");
+    setPage("practice");
+    setFilter("all");
+    setMobile(false);
+    setName("");
+    setCreatingProfile(false);
+    setSubjectId(subjects[0].id);
+    setTopic(subjects[0].topics[0]);
+    setDifficulty(1);
+    setProgressive(false);
+    setType("MIXED");
   }
   function chooseSubject(id) {
     setSubjectId(id);
@@ -149,8 +190,15 @@ function App() {
     try {
       const d = await request("register", { name: name.trim() });
       const p = { ...d.student, token: d.token };
+      setSavedProfiles((previous) => [
+        ...previous.filter((existing) => existing.id !== p.id),
+        p,
+      ]);
+      activeToken.current = p.token;
       store.set("her-profile", p);
       setProfile(p);
+      setName("");
+      setCreatingProfile(false);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -297,7 +345,19 @@ function App() {
             <strong>{profile?.name || "Your next chapter"}</strong>
             <small>GATE 2027 aspirant</small>
           </div>
-          <GraduationCap size={20} />
+          {profile ? (
+            <button
+              className="icon-button logout-button"
+              onClick={() => switchProfile(null)}
+              disabled={!!busy}
+              aria-label="Log out and switch student"
+              title="Log out and switch student"
+            >
+              <LogOut size={19} />
+            </button>
+          ) : (
+            <GraduationCap size={20} />
+          )}
         </div>
       </aside>
       <main>
@@ -360,39 +420,97 @@ function App() {
             </div>
           )}
           {!profile && (
-            <form className="welcome-card" onSubmit={register}>
-              <div className="welcome-icon">
-                <GraduationCap size={24} />
-              </div>
-              <div>
-                <h3>First, what should we call you?</h3>
-                <p>Your practice and progress will belong to this profile.</p>
-              </div>
-              <label className="sr-only" htmlFor="student-name">
-                Student name
-              </label>
-              <input
-                id="student-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your first name"
-                required
-                maxLength={60}
-                autoComplete="given-name"
-              />
-              <button
-                className="button primary"
-                disabled={!!busy || !name.trim()}
-              >
-                {busy === "profile" ? (
-                  <LoaderCircle className="spin" size={17} />
-                ) : (
-                  <>
-                    Let’s begin <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
-            </form>
+            <section className="profile-chooser" aria-label="Choose a student">
+              {savedProfiles.length > 0 && (
+                <>
+                  <div className="profile-heading">
+                    <div>
+                      <h2>Who’s practising today?</h2>
+                      <p>
+                        Continue with a student saved in this browser, or add
+                        someone new.
+                      </p>
+                    </div>
+                    <button
+                      className="text-button"
+                      onClick={() => setCreatingProfile(true)}
+                      disabled={!!busy}
+                    >
+                      New student <ArrowRight size={15} />
+                    </button>
+                  </div>
+                  <div className="saved-profiles">
+                    {savedProfiles.map((person) => (
+                      <button
+                        className="saved-profile"
+                        key={person.id}
+                        onClick={() => switchProfile(person)}
+                        disabled={!!busy}
+                      >
+                        <span className="avatar">
+                          {person.name[0].toUpperCase()}
+                        </span>
+                        <span>
+                          <strong>{person.name}</strong>
+                          <small>Continue practising</small>
+                        </span>
+                        <ArrowRight size={16} />
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {(creatingProfile || savedProfiles.length === 0) && (
+                <form className="welcome-card" onSubmit={register}>
+                  <div className="welcome-icon">
+                    <GraduationCap size={24} />
+                  </div>
+                  <div>
+                    <h3>Add a new student</h3>
+                    <p>
+                      Your practice and progress will belong to this profile.
+                    </p>
+                  </div>
+                  <label className="sr-only" htmlFor="student-name">
+                    Student name
+                  </label>
+                  <input
+                    id="student-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your first name"
+                    required
+                    maxLength={60}
+                    autoComplete="given-name"
+                  />
+                  <button
+                    className="button primary"
+                    disabled={!!busy || !name.trim()}
+                  >
+                    {busy === "profile" ? (
+                      <LoaderCircle className="spin" size={17} />
+                    ) : (
+                      <>
+                        Let’s begin <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                  {savedProfiles.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={!!busy}
+                      onClick={() => {
+                        setCreatingProfile(false);
+                        setName("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </form>
+              )}
+            </section>
           )}
           <div className="stats-row">
             <Stat

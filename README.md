@@ -43,7 +43,7 @@ Uploads fail explicitly if Drive permissions are invalid; questions with a requi
 - `questions`: student ID, topic, difficulty, question format, prompt, answer, explanation, optional Drive file metadata, creation time.
 - `attempts`: submitted answer, correctness, question and student IDs, creation time. A unique index preserves the first submission.
 
-The browser keeps the profile token in localStorage. A name is a display name, not an authentication credential. Different browsers with the same name are separate profiles. Clearing browser storage loses access to that profile; records remain in MongoDB. Production accounts and recovery are outside this initial version. Do not share a browser profile between students.
+The browser keeps saved student profiles and their tokens in localStorage. Use the logout button beside the student name to return to the profile chooser, select an existing student, or add a new student by name. Logout preserves each student’s history and saved profile. The chooser lists profiles saved in this browser; it does not expose a public directory of database users. A name is a display name, not an authentication credential. Different browsers with the same name are separate profiles. Anyone using the same browser can select its saved students. Clearing browser storage loses access to those profiles; records remain in MongoDB. Production accounts and recovery are outside this initial version.
 
 History shows the latest 200 generated questions and associated first attempts. Incorrect answers have their own filter; unanswered questions can be resumed. Opening a completed question shows the preserved answer and explanation. Start another question on the same topic to practise again.
 
